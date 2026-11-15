@@ -13,7 +13,7 @@
 
 ## 直接使用
 
-https://hyt512.github.io/soundloom/
+https://hyt512.github.io/sound/
 
 点击「聆听我的声音」开始播放。浏览器需要用户点击后才能播放音频。
 
