@@ -7,6 +7,7 @@ const recordingAudio = (() => {
     'bird:0': { name: '清晨鸟鸣', url: 'assets/audio/morning-bird-loop.wav' },
     'bird:1': { name: '林间群鸟', url: 'assets/audio/forest-birds-loop.wav' },
     'cicada:0': { name: '夏日轻鸣', url: 'assets/audio/light-cicada-loop.wav' },
+    'water:0': { name: '潺潺溪流', url: 'assets/audio/gentle-stream-loop.wav' },
     'cicada:1': { name: '盛夏蝉声', url: 'assets/audio/summer-cicadas-loop.wav' }
   };
   const buffers = new Map(), loading = new Map();
