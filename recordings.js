@@ -2,6 +2,8 @@
 // Each WAV contains a 1-second equal-power tail/head crossfade.
 const recordingAudio = (() => {
   const assets = {
+    'keyboard:0': { name: '指尖轻语', url: 'assets/audio/gentle-keys-loop.wav' },
+    'keyboard:1': { name: '键上疾雨', url: 'assets/audio/resonant-keys-loop.wav' },
     'book:0': { name: '轻翻书页', url: 'assets/audio/gentle-pages-loop.wav' },
     'book:1': { name: '纸间回响', url: 'assets/audio/resonant-pages-loop.wav' },
     'train:0': { name: '空站回响', url: 'assets/audio/empty-station-loop.wav' },
