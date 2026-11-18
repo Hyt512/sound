@@ -29,31 +29,56 @@ const recordingAudio = (() => {
   const buffers = new Map(), loading = new Map();
   const keyFor = s => s.id + ':' + s.variant;
   const assetFor = s => Object.hasOwn(assets, keyFor(s)) ? assets[keyFor(s)] : null;
-  async function load(context, id) {
-    if (buffers.has(id)) return;
-    if (!loading.has(id)) {
-      const asset = assets[id];
-      const task = (async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
-        try {
-          const response = await fetch(asset.url, { signal: controller.signal });
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          const buffer = await context.decodeAudioData(await response.arrayBuffer());
-          if (!buffer.length || !buffer.duration) throw new Error('Invalid audio');
-          buffers.set(id, buffer);
-        } catch (error) {
-          throw new Error(asset.name + '音频加载失败，请检查网络后重试');
-        } finally { clearTimeout(timeout); }
+  // Store only audio the visitor actually requests; hashed URLs prevent stale playback.
+  async function fetchAudio(url,signal){
+    let cache=null;
+    try{if(typeof caches!=='undefined'){cache=await caches.open('soundloom-audio-mobile-v1');const hit=await cache.match(url);if(hit)return hit}}catch{}
+    const response=await fetch(url,{signal});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    if(cache){try{cache.put(url,response.clone()).catch(()=>{})}catch{}}
+    return response;
+  }
+  function trimEncoderPadding(context,buffer,meta){
+    // Modern decoders remove MP3 padding. Trim it only when a decoder leaves extra samples.
+    if(!meta||!buffer.sampleRate||typeof buffer.getChannelData!=='function')return buffer;
+    const target=Math.round(meta.duration*buffer.sampleRate),extra=buffer.length-target;
+    if(extra<=2||extra>buffer.sampleRate*.15)return buffer;
+    const priming=Math.round(meta.delay*buffer.sampleRate),offset=extra>=priming?priming:0;
+    const trimmed=context.createBuffer(buffer.numberOfChannels,target,buffer.sampleRate);
+    for(let c=0;c<buffer.numberOfChannels;c++)trimmed.getChannelData(c).set(buffer.getChannelData(c).subarray(offset,offset+target));
+    return trimmed;
+  }
+  async function load(context,id){
+    if(buffers.has(id))return;
+    if(!loading.has(id)){
+      const asset=assets[id];
+      const task=(async()=>{
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),30000);
+        try{
+          const meta=typeof optimizedAudio!=='undefined'?optimizedAudio[asset.url]:null;
+          const response=await fetchAudio(meta?meta.url:asset.url,controller.signal);
+          let buffer;
+          try{buffer=await context.decodeAudioData(await response.arrayBuffer());buffer=trimEncoderPadding(context,buffer,meta)}
+          catch(error){
+            if(!meta)throw error;
+            const fallback=await fetchAudio(asset.url,controller.signal);
+            buffer=await context.decodeAudioData(await fallback.arrayBuffer());
+          }
+          if(!buffer.length||!buffer.duration)throw new Error('Invalid audio');
+          buffers.set(id,buffer);
+        }catch(error){throw new Error(asset.name+'音频加载失败，请检查网络后重试')}
+        finally{clearTimeout(timeout)}
       })();
-      loading.set(id, task);
-      task.then(() => loading.delete(id), () => loading.delete(id));
+      loading.set(id,task);task.then(()=>loading.delete(id),()=>loading.delete(id));
     }
     await loading.get(id);
   }
   return {
-    async prepare(context, selected) {
-      await Promise.all([...new Set(selected.filter(assetFor).map(keyFor))].map(id => load(context, id)));
+    async prepare(context,selected,onProgress){
+      const ids=[...new Set(selected.filter(assetFor).map(keyFor))];let done=0;
+      if(onProgress)onProgress(0,ids.length);
+      await Promise.all(ids.map(async id=>{await load(context,id);if(onProgress)onProgress(++done,ids.length)}));
     },
     get(s) {
       const asset = assetFor(s);
