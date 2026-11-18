@@ -4,7 +4,8 @@ const recordingAudio = (() => {
   const assets = {
     rain: { variant: 0, name: '小雨', url: 'assets/audio/light-rain-loop.wav' },
     wind: { variant: 0, name: '微风', url: 'assets/audio/gentle-wind-loop.wav' },
-    bird: { variant: 1, name: '林间群鸟', url: 'assets/audio/forest-birds-loop.wav' }
+    bird: { variant: 1, name: '林间群鸟', url: 'assets/audio/forest-birds-loop.wav' },
+    cicada: { variant: 1, name: '盛夏蝉声', url: 'assets/audio/summer-cicadas-loop.wav' }
   };
   const buffers = new Map(), loading = new Map();
   const assetFor = s => Object.hasOwn(assets, s.id) && s.variant === assets[s.id].variant ? assets[s.id] : null;
