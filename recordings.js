@@ -2,11 +2,12 @@
 // Each WAV contains a 1-second equal-power tail/head crossfade.
 const recordingAudio = (() => {
   const assets = {
-    rain: { name: '小雨', url: 'assets/audio/light-rain-loop.wav' },
-    wind: { name: '微风', url: 'assets/audio/gentle-wind-loop.wav' }
+    rain: { variant: 0, name: '小雨', url: 'assets/audio/light-rain-loop.wav' },
+    wind: { variant: 0, name: '微风', url: 'assets/audio/gentle-wind-loop.wav' },
+    bird: { variant: 1, name: '林间群鸟', url: 'assets/audio/forest-birds-loop.wav' }
   };
   const buffers = new Map(), loading = new Map();
-  const assetFor = s => s.variant === 0 && Object.hasOwn(assets, s.id) ? assets[s.id] : null;
+  const assetFor = s => Object.hasOwn(assets, s.id) && s.variant === assets[s.id].variant ? assets[s.id] : null;
   async function load(context, id) {
     if (buffers.has(id)) return;
     if (!loading.has(id)) {
