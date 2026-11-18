@@ -1,29 +1,43 @@
 // Decoded PCM is shared by realtime playback and offline WAV rendering.
-// The WAV already contains a 1-second equal-power tail/head crossfade.
+// Each WAV contains a 1-second equal-power tail/head crossfade.
 const recordingAudio = (() => {
-  let buffer = null, loading = null;
-  const isRecording = s => s.id === 'rain' && s.variant === 0;
-  async function prepare(context, selected) {
-    if (!selected.some(isRecording) || buffer) return;
-    if (!loading) {
-      loading = (async () => {
+  const assets = {
+    rain: { name: '小雨', url: 'assets/audio/light-rain-loop.wav' },
+    wind: { name: '微风', url: 'assets/audio/gentle-wind-loop.wav' }
+  };
+  const buffers = new Map(), loading = new Map();
+  const assetFor = s => s.variant === 0 && Object.hasOwn(assets, s.id) ? assets[s.id] : null;
+  async function load(context, id) {
+    if (buffers.has(id)) return;
+    if (!loading.has(id)) {
+      const asset = assets[id];
+      const task = (async () => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 20000);
         try {
-          const response = await fetch('assets/audio/light-rain-loop.wav', { signal: controller.signal });
-          if (!response.ok) throw new Error('小雨音频加载失败，请检查网络后重试');
-          buffer = await context.decodeAudioData(await response.arrayBuffer());
-          if (!buffer.length || !buffer.duration) { buffer = null; throw new Error('小雨音频无法解码，请重试'); }
+          const response = await fetch(asset.url, { signal: controller.signal });
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          const buffer = await context.decodeAudioData(await response.arrayBuffer());
+          if (!buffer.length || !buffer.duration) throw new Error('Invalid audio');
+          buffers.set(id, buffer);
         } catch (error) {
-          buffer = null;
-          throw new Error('小雨音频加载失败，请检查网络后重试');
-        } finally { clearTimeout(timeout); loading = null; }
+          throw new Error(asset.name + '音频加载失败，请检查网络后重试');
+        } finally { clearTimeout(timeout); }
       })();
+      loading.set(id, task);
+      task.then(() => loading.delete(id), () => loading.delete(id));
     }
-    await loading;
+    await loading.get(id);
   }
   return {
-    prepare,
-    get(s) { if (!isRecording(s)) return null; if (!buffer) throw new Error('小雨音频尚未加载'); return buffer; }
+    async prepare(context, selected) {
+      await Promise.all([...new Set(selected.filter(assetFor).map(s => s.id))].map(id => load(context, id)));
+    },
+    get(s) {
+      const asset = assetFor(s);
+      if (!asset) return null;
+      if (!buffers.has(s.id)) throw new Error(asset.name + '音频尚未加载');
+      return buffers.get(s.id);
+    }
   };
 })();
