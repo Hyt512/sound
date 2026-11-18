@@ -4,9 +4,14 @@ const sounds=[['rain','雨声','Rain','让思绪，随雨滴慢下来','nature',
 for(const card of soundCards)sounds.push({...card,en:card.code,desc:'声音卡牌 '+card.code+' · 原声循环',variants:['卡牌原声'],volume:0,variant:0,lastVolume:35});
 const $=s=>document.querySelector(s);let historyReady=false,voiceFilter='speech',filter='all',searchTerm='',mixRevision=0,playing=false,loadingPlay=false,playRequest=0,ctx,masterGain,nodes={},startTime=0,elapsed=0,timerEnd=0,mixName='我的宁静时刻',saved=[];try{saved=JSON.parse(localStorage.getItem('soundloom-presets')||'[]');if(!Array.isArray(saved))saved=[]}catch{}function toast(t){$('#toast').textContent=t;$('#toast').classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>$('#toast').classList.remove('show'),3000)}
 function matchesSoundFilter(s,value){return value==='selected'?s.volume>0:value==='all'||s.category===value}
-function updateFilterCounts(){document.querySelectorAll('[data-filter]').forEach(b=>{const count=b.querySelector('span');if(count)count.textContent=sounds.filter(s=>matchesSoundFilter(s,b.dataset.filter)).length})}
+function updateFilterCounts(){
+ document.querySelectorAll('[data-filter]').forEach(b=>{const count=b.querySelector('span');if(count)count.textContent=sounds.filter(s=>matchesSoundFilter(s,b.dataset.filter)).length});
+ const active=sounds.filter(s=>s.volume>0);$('#selectedBannerCount').textContent=active.length;
+ const root=$('#selectedBannerLayers');root.replaceChildren(...active.map(s=>{const chip=document.createElement('span');chip.textContent=s.variants[s.variant]+' '+s.volume+'%';return chip}));
+ if(!active.length){const hint=document.createElement('span');hint.textContent='还没有选声音，先去下方声音库挑选吧';root.append(hint)}
+}
 function renderCards(){
- const root=$('#cards');$('#voiceFilters').hidden=filter!=='voice';
+ const root=$('#cards');$('#voiceFilters').hidden=filter!=='voice';$('#selectedViewHint').hidden=filter!=='selected';
  updateFilterCounts();
  const visible=sounds.filter(s=>matchesSoundFilter(s,filter)&&(filter!=='voice'||s.subcategory===voiceFilter)&&(!searchTerm||(s.name+' '+s.en+' '+s.variants.join(' ')).toLowerCase().includes(searchTerm)));
  if(!visible.length){root.innerHTML=filter==='selected'&&!sounds.some(s=>s.volume>0)?'<div class="category-empty"><span aria-hidden="true">♡</span><h3>还没有已选声音</h3><p>在其他声音板块点击 ＋ 或调高音量，声音就会出现在这里。</p></div>':'<div class="category-empty"><span aria-hidden="true">◌</span><h3>这里暂时没有匹配的声音</h3><p>试试其他分类，或换一个搜索词。</p></div>';return}
@@ -76,3 +81,9 @@ activity.onChange=()=>{if(!$('#home').hidden)renderActivity()};
 setInterval(()=>{if(!$('#home').hidden)renderActivityStats(activity.read())},1000);
 
 $('#soundSearch').addEventListener('input',e=>{searchTerm=e.target.value.trim().toLowerCase();renderCards()});
+
+$('#openSelected').onclick=()=>{
+ filter='selected';searchTerm='';$('#soundSearch').value='';
+ document.querySelectorAll('[data-filter]').forEach(b=>{b.classList.toggle('selected',b.dataset.filter==='selected');b.setAttribute('aria-pressed',b.dataset.filter==='selected')});
+ renderCards();$('#selectedViewHint').scrollIntoView({behavior:'smooth',block:'start'});
+};
