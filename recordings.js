@@ -2,6 +2,8 @@
 // Each WAV contains a 1-second equal-power tail/head crossfade.
 const recordingAudio = (() => {
   const assets = {
+    'frog:0': { name: '荷塘独鸣', url: 'assets/audio/solo-frog-loop.wav' },
+    'frog:1': { name: '夏夜蛙歌', url: 'assets/audio/frog-chorus-loop.wav' },
     'rain:0': { name: '小雨', url: 'assets/audio/light-rain-loop.wav' },
     'wind:0': { name: '微风', url: 'assets/audio/gentle-wind-loop.wav' },
     'bird:0': { name: '清晨鸟鸣', url: 'assets/audio/morning-bird-loop.wav' },
