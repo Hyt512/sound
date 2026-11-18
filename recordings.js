@@ -4,6 +4,7 @@ const recordingAudio = (() => {
   const assets = {
     'rain:0': { name: '小雨', url: 'assets/audio/light-rain-loop.wav' },
     'wind:0': { name: '微风', url: 'assets/audio/gentle-wind-loop.wav' },
+    'bird:0': { name: '清晨鸟鸣', url: 'assets/audio/morning-bird-loop.wav' },
     'bird:1': { name: '林间群鸟', url: 'assets/audio/forest-birds-loop.wav' },
     'cicada:0': { name: '夏日轻鸣', url: 'assets/audio/light-cicada-loop.wav' },
     'cicada:1': { name: '盛夏蝉声', url: 'assets/audio/summer-cicadas-loop.wav' }
