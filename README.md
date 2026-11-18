@@ -129,3 +129,7 @@ python3 -m http.server 8000
 - 流水清音：纯音乐水流.mp4 → `assets/audio/music-flow-loop.wav`
 - 水底微光：轻音乐水底.mp4 → `assets/audio/music-underwater-loop.wav`
 - 古琴幽韵：轻音乐古琴.mp4 → `assets/audio/music-guqin-loop.wav`
+
+## 手机使用
+
+公开访问地址 https://hyt512.github.io/sound/ ，无需 GitHub 登录。手机布局包含固定底部试听/暂停、已选和调配入口；小屏使用单列声音卡片，触控按钮至少 44px，滑块触点放大，并适配刘海与底部安全区域。搜索框和表单字体至少 16px，减少 iPhone 输入时自动放大。
