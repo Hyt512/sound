@@ -1,0 +1,38 @@
+[
+  {
+    "id": "music_violin_air",
+    "name": "g弦上的咏叹调",
+    "en": "Violin",
+    "desc": "弦乐演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "violin",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-violin-air-loop.wav",
+    "sourceFile": "弦乐《g弦上的咏叹调》.mp4",
+    "sourceSeconds": 29.547,
+    "loopSeconds": 28.547
+  },
+  {
+    "id": "music_violin_spring",
+    "name": "春",
+    "en": "Violin",
+    "desc": "弦乐演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "violin",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-violin-spring-loop.wav",
+    "sourceFile": "小提琴曲《春》.mp4",
+    "sourceSeconds": 20.693,
+    "loopSeconds": 19.693
+  }
+]

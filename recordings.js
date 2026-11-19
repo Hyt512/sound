@@ -7,6 +7,8 @@ const recordingAudio = (() => {
     'music_piano_nocturne:0': { name: "降E大调夜曲 Op.9 No.2", url: 'assets/audio/music-piano-nocturne-loop.wav' },
     'music_piano_k330:0': { name: "莫扎特奏鸣曲k330第一乐章", url: 'assets/audio/music-piano-k330-loop.wav' },
     'music_piano_moonlight:0': { name: "月光", url: 'assets/audio/music-piano-moonlight-loop.wav' },
+    'music_violin_air:0': { name: "g弦上的咏叹调", url: 'assets/audio/music-violin-air-loop.wav' },
+    'music_violin_spring:0': { name: "春", url: 'assets/audio/music-violin-spring-loop.wav' },
     'music_flow:0': { name: '流水清音', url: 'assets/audio/music-flow-loop.wav' },
     'music_underwater:0': { name: '水底微光', url: 'assets/audio/music-underwater-loop.wav' },
     'music_guqin:0': { name: '古琴幽韵', url: 'assets/audio/music-guqin-loop.wav' },
