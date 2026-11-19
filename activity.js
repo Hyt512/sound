@@ -3,7 +3,9 @@ const activity = (() => {
   const key = 'soundloom-activity-v1';
   const blank = () => ({ history: [], listenMs: 0, sessions: 0 });
   let data = blank(), available = true, pending = null, debounce, current = null, checkpoint = null, lastPersist = 0;
-  const valid = p => p && typeof p.name === 'string' && Number.isFinite(p.master) && p.master >= 0 && p.master <= 100 && Array.isArray(p.sounds) && p.sounds.length <= 100 && p.sounds.every(s => s && typeof s.id === 'string' && Number.isFinite(s.volume) && s.volume >= 0 && s.volume <= 100 && Number.isInteger(s.variant) && s.variant >= 0);
+  const validParts = parts => Array.isArray(parts)&&parts.length<=100&&parts.every(s=>s&&typeof s.id==='string'&&Number.isFinite(s.volume)&&s.volume>=0&&s.volume<=100&&Number.isInteger(s.variant)&&s.variant>=0);
+  const backgroundAudible = p => p.background&&p.background.volume>0&&p.background.parts.some(s=>s.volume>0);
+  const valid = p => p && typeof p.name === 'string' && Number.isFinite(p.master) && p.master >= 0 && p.master <= 100 && Array.isArray(p.sounds) && p.sounds.length <= 100 && p.sounds.every(s => s && typeof s.id === 'string' && Number.isFinite(s.volume) && s.volume >= 0 && s.volume <= 100 && Number.isInteger(s.variant) && s.variant >= 0)&&(!p.background||(Number.isFinite(p.background.volume)&&p.background.volume>=0&&p.background.volume<=100&&validParts(p.background.parts)));
   try {
     const raw = JSON.parse(localStorage.getItem(key) || 'null');
     if (raw) {
@@ -14,12 +16,12 @@ const activity = (() => {
   } catch { available = false; }
   function persist() { try { localStorage.setItem(key, JSON.stringify(data)); available = true; } catch { available = false; } lastPersist = Date.now(); }
   function notify() { if (api.onChange) api.onChange(); }
-  const signature = p => JSON.stringify([p.master, p.sounds.filter(s => s.volume > 0).map(s => [s.id, s.volume, s.variant]).sort((a, b) => a[0].localeCompare(b[0]))]);
+  const signature = p => JSON.stringify([p.background||null,p.master, p.sounds.filter(s => s.volume > 0).map(s => [s.id, s.volume, s.variant]).sort((a, b) => a[0].localeCompare(b[0]))]);
   function flush() {
     clearTimeout(debounce);
     if (!pending) return;
     const p = pending; pending = null;
-    if (!p.sounds.some(s => s.volume > 0)) return;
+    if(p.phase==='noise'||(!p.sounds.some(s=>s.volume>0)&&!backgroundAudible(p)))return;
     const previous = data.history[0];
     if (previous && signature(previous) === signature(p)) { previous.name = p.name; persist(); notify(); return; }
     data.history.unshift({ ...p, at: Date.now() });
@@ -29,7 +31,7 @@ const activity = (() => {
     const now = Date.now();
     if (checkpoint !== null) {
       // Count only while playback is running and the current mix is audible.
-      if (current && current.master > 0 && current.sounds.some(s => s.volume > 0)) data.listenMs += Math.max(0, now - checkpoint);
+      if (current && current.master > 0 && (current.sounds.some(s => s.volume > 0)||backgroundAudible(current))) data.listenMs += Math.max(0, now - checkpoint);
       checkpoint = now;
       if (now - lastPersist >= 15000) persist();
     }

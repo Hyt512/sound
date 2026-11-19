@@ -2,8 +2,9 @@ const paths={synth:'M2 12c4-14 6 14 10 0s6 14 10 0',music:'M9 18V5l11-2v13M9 8l1
 const sounds=[['rain','雨声','Rain','让思绪，随雨滴慢下来','nature',['绵绵小雨','倾盆大雨']],['wind','风声','Wind','风穿过树叶，也经过心间','nature',['林间微风','旷野大风']],['bird','鸟鸣','Birds','把清晨的森林搬到身边','nature',['清晨鸟鸣','林间群鸟']],['cicada','蝉鸣','Cicadas','一段被拉长的夏日午后','nature',['夏日轻鸣','盛夏蝉声']],['water','水流声','Water','听见水流，缓缓向前','nature',['潺潺溪流','山间瀑布']],['frog','蛙鸣','Frogs','让蛙声，唤醒夏夜的荷塘','nature',['荷塘独鸣','夏夜蛙歌']],['cricket','蟋蟀声','Crickets','一声轻吟，把夜色慢慢铺开','nature',['月下独吟','草间疏鸣']],['train','地铁站','Metro','在人群之中，留一点距离','life',['空站回响','人间站台']],['book','翻书声','Pages','一页一页，读过好时光','life',['轻翻书页','纸间回响']],['motorcycle','摩托车','Motorcycle','引擎低吟，掠过熟悉的街巷','life',['街巷引擎']],['music_flow','流水清音','Water Music','清音随水，缓缓流过此刻','music',['流水清音']],['music_underwater','水底微光','Underwater','沉入水色，留一束温柔微光','music',['水底微光']],['music_guqin','古琴幽韵','Guqin','弦音悠远，心事渐渐舒展','music',['古琴幽韵']],['synth_sine','正弦波','Sine','纯净圆润，柔和的单一频率','synth',['低音 110Hz','中音 220Hz','高音 440Hz']],['synth_saw','锯齿波','Sawtooth','明亮丰富，带有弦乐般的锋芒','synth',['低音 110Hz','中音 220Hz','高音 440Hz']],['synth_square','方波','Square','棱角分明，复古电子的颗粒感','synth',['低音 110Hz','中音 220Hz','高音 440Hz']],['synth_triangle','三角波','Triangle','温润轻盈，介于纯音与泛音之间','synth',['低音 110Hz','中音 220Hz','高音 440Hz']],['synth_wind','风噪','Wind Noise','起伏的低频，像风经过空旷原野','synth',['风噪音色']],['synth_white','白噪声','White Noise','均匀细密的宽频噪声底色','synth',['白噪音色']],['keyboard','键盘声','Keyboard','让专注有自己的节奏','life',['指尖轻语','键上疾雨']]].map(([id,name,en,desc,category,variants])=>({id,name,en,desc,category,variants,volume:id==='rain'?50:id==='wind'?30:0,variant:0,lastVolume:40}));
 // PDF cards are separate entries so existing user recordings and saved IDs stay intact.
 for(const card of soundCards)sounds.push({...card,en:card.code,desc:'声音卡牌 '+card.code+' · 原声循环',variants:['卡牌原声'],volume:0,variant:0,lastVolume:35});
-const $=s=>document.querySelector(s);let historyReady=false,voiceFilter='speech',filter='all',searchTerm='',visibleLimit=12,mixRevision=0,playing=false,loadingPlay=false,playRequest=0,ctx,masterGain,nodes={},startTime=0,elapsed=0,timerEnd=0,mixName='我的宁静时刻',saved=[];try{saved=JSON.parse(localStorage.getItem('soundloom-presets')||'[]');if(!Array.isArray(saved))saved=[]}catch{}function toast(t){$('#toast').textContent=t;$('#toast').classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>$('#toast').classList.remove('show'),3000)}
-function matchesSoundFilter(s,value){return value==='selected'?s.volume>0:value==='all'||s.category===value}
+sounds.forEach(s=>{s.volume=0});
+const $=s=>document.querySelector(s);let stage='noise',noiseParts=[],noiseBuffer=null,noiseVolume=100,noiseBuildRequest=0,workflowBusy=false,maskDraft=null,historyReady=false,voiceFilter='speech',filter='all',searchTerm='',visibleLimit=12,mixRevision=0,playing=false,loadingPlay=false,playRequest=0,ctx,masterGain,nodes={},startTime=0,elapsed=0,timerEnd=0,mixName='我的噪音调配',saved=[];try{saved=JSON.parse(localStorage.getItem('soundloom-presets')||'[]');if(!Array.isArray(saved))saved=[]}catch{}function toast(t){$('#toast').textContent=t;$('#toast').classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>$('#toast').classList.remove('show'),3000)}
+function matchesSoundFilter(s,value){if(stage==='noise'&&!['life','synth'].includes(s.category))return false;return value==='selected'?s.volume>0:value==='all'||s.category===value}
 function updateFilterCounts(){
  document.querySelectorAll('[data-filter]').forEach(b=>{const count=b.querySelector('span');if(count)count.textContent=sounds.filter(s=>matchesSoundFilter(s,b.dataset.filter)).length});
  const active=sounds.filter(s=>s.volume>0);$('#selectedBannerCount').textContent=active.length;
@@ -11,61 +12,75 @@ function updateFilterCounts(){
  if(!active.length){const hint=document.createElement('span');hint.textContent='还没有选声音，先去下方声音库挑选吧';root.append(hint)}
 }
 function renderCards(){
+ renderWorkflow();
  const root=$('#cards');$('#voiceFilters').hidden=filter!=='voice';$('#selectedViewHint').hidden=filter!=='selected';
  updateFilterCounts();
  const visible=sounds.filter(s=>matchesSoundFilter(s,filter)&&(filter!=='voice'||s.subcategory===voiceFilter)&&(!searchTerm||(s.name+' '+s.en+' '+s.variants.join(' ')).toLowerCase().includes(searchTerm)));
  $('#loadMoreSounds').hidden=filter==='selected'||visible.length<=visibleLimit;$('#loadMoreSounds').textContent='再显示 12 个声音（还有 '+Math.max(0,visible.length-visibleLimit)+' 个）';
  if(!visible.length){root.innerHTML=filter==='selected'&&!sounds.some(s=>s.volume>0)?'<div class="category-empty"><span aria-hidden="true">♡</span><h3>还没有已选声音</h3><p>在其他声音板块点击 ＋ 或调高音量，声音就会出现在这里。</p></div>':'<div class="category-empty"><span aria-hidden="true">◌</span><h3>这里暂时没有匹配的声音</h3><p>试试其他分类，或换一个搜索词。</p></div>';return}
  root.innerHTML=(filter==='selected'?visible:visible.slice(0,visibleLimit)).map(s=>`<article class="sound-card ${s.volume?'on':''}" data-id="${s.id}"><div class="card-head"><div class="sound-icon"><svg viewBox="0 0 24 24"><path d="${paths[s.id]||(s.category==='nature'?paths.bird:s.category==='music'?paths.music:s.category==='synth'?paths.synth:paths.book)}"/></svg></div><button class="toggle" aria-label="${s.volume?'关闭':'添加'}${s.name}" aria-pressed="${!!s.volume}">${s.volume?'✓':'+'}</button></div><h3>${s.name}<small>${s.en}</small></h3><p class="card-desc">${s.id.startsWith('music_')?'轻音乐录音 · 连续循环':s.variant===0&&s.id==='rain'?'真实小雨录音 · 连续循环':s.variant===0&&s.id==='wind'?'真实风声录音 · 连续循环':s.id==='bird'?'真实鸟鸣录音 · 连续循环':s.id==='cicada'?'真实蝉鸣录音 · 连续循环':s.id==='motorcycle'?'真实摩托车录音 · 连续循环':s.id==='keyboard'?(s.variant===0?'轻敲键盘录音 · 连续循环':'重敲键盘录音 · 连续循环'):s.id==='book'?(s.variant===0?'轻柔翻页录音 · 连续循环':'响亮翻页录音 · 连续循环'):s.id==='train'?(s.variant===0?'空站回响 · 无人声录音':'人间站台 · 有人声录音'):s.id==='cricket'?'真实蟋蟀录音 · 连续循环':s.id==='frog'?'真实蛙鸣录音 · 连续循环':s.id==='water'?(s.variant===0?'真实溪流录音 · 连续循环':'真实瀑布录音 · 连续循环'):s.desc}</p><div class="variants">${s.variants.map((v,i)=>`<button class="${s.variant===i?'active':''}" data-variant="${i}" aria-pressed="${s.variant===i}">${v}</button>`).join('')}</div><div class="volume"><input type="range" min="0" max="100" value="${s.volume}" aria-label="${s.name}音量" style="--value:${s.volume}%"><span>${s.volume}%</span></div></article>`).join('')}
-function mixSnapshot(){return {name:mixName,master:+$('#master').value,sounds:sounds.map(s=>({id:s.id,volume:s.volume,variant:s.variant}))}}
-function updateMix(){updateMobilePlayer();updateFilterCounts();if(playing)syncMixer();if(historyReady)activity.schedule(mixSnapshot());const active=sounds.filter(s=>s.volume);$('#statusText').innerHTML=`已调配 <b>${active.length}</b> 种声音`;$('#layers').replaceChildren(...active.map(s=>{const a=document.createElement('span');a.className='layer';a.textContent=`${s.name} ${s.volume}%`;return a}));$('#mixTitle').textContent=mixName;$('#mixDescription').textContent=active.length?active.map(s=>s.variants[s.variant]).join(' · '):'挑选一种声音，开启你的宁静时刻';$('#savedCount').textContent=saved.length;for(const s of sounds)if(nodes[s.id])nodes[s.id].gain.gain.setTargetAtTime(soundLevel(s),ctx.currentTime,.1)}
+function mixSnapshot(){return {phase:stage,name:mixName,master:+$('#master').value,sounds:sounds.filter(s=>s.volume>0).map(s=>({id:s.id,volume:s.volume,variant:s.variant})),...(stage==='mask'&&noiseParts.length?{background:{name:'我的噪音背景',volume:noiseVolume,parts:noiseParts.map(p=>({...p}))}}:{})}}
+function updateMix(){renderWorkflow();updateMobilePlayer();updateFilterCounts();if(playing)syncMixer();if(historyReady)activity.schedule(mixSnapshot());const active=sounds.filter(s=>s.volume);$('#statusText').innerHTML=stage==='noise'?`已调配 <b>${active.length}</b> 种噪音`:`1 组噪音背景 · <b>${active.length}</b> 种遮蔽声音`;$('#layers').replaceChildren(...active.map(s=>{const a=document.createElement('span');a.className='layer';a.textContent=`${s.name} ${s.volume}%`;return a}));$('#mixTitle').textContent=mixName;$('#mixDescription').textContent=active.length?active.map(s=>s.variants[s.variant]).join(' · '):'挑选一种声音，开启你的宁静时刻';$('#savedCount').textContent=saved.length;for(const s of sounds)if(nodes[s.id])nodes[s.id].gain.gain.setTargetAtTime(soundLevel(s),ctx.currentTime,.1)}
 $('#cards').addEventListener('click',e=>{const card=e.target.closest('.sound-card');if(!card)return;const s=sounds.find(s=>s.id===card.dataset.id);if(e.target.closest('.toggle')){s.volume=s.volume?0:s.lastVolume;renderCards();updateMix()}if(e.target.hasAttribute('data-variant')){s.variant=+e.target.dataset.variant;renderCards();updateMix()}});$('#cards').addEventListener('input',e=>{if(e.target.type!=='range')return;const card=e.target.closest('.sound-card'),s=sounds.find(s=>s.id===card.dataset.id);s.volume=+e.target.value;if(s.volume)s.lastVolume=s.volume;card.classList.toggle('on',s.volume>0);e.target.style.setProperty('--value',s.volume+'%');card.querySelector('.volume span').textContent=s.volume+'%';const b=card.querySelector('.toggle');b.textContent=s.volume?'✓':'+';b.setAttribute('aria-pressed',!!s.volume);b.setAttribute('aria-label',(s.volume?'关闭':'添加')+s.name);updateMix();if(filter==='selected'&&s.volume===0)renderCards()});document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;visibleLimit=12;document.querySelectorAll('[data-filter]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',x===b)});renderCards()});
 // Original procedural sound textures. The same buffers power live playback and WAV export.
 function makeBuffer(ac,s,duration=12){const rate=ac.sampleRate,n=Math.floor(duration*rate),buf=ac.createBuffer(2,n,rate);for(let ch=0;ch<2;ch++){const out=buf.getChannelData(ch);let brown=0,low=0,event=1,phase=0,freq=1000;for(let i=0;i<n;i++){const t=i/rate,w=Math.random()*2-1;brown=(brown+.02*w)/1.02;low+=.03*(w-low);let v=0;const rich=s.variant===1;if(s.id==='rain')v=(w*.19+low*.6)*(rich?1:.5);if(s.id==='wind')v=brown*3.3*(.55+.35*Math.sin(t*.8)+.1*Math.sin(t*2.3))*(rich?1.3:.7);if(s.id==='water')v=rich?(low*2.7+w*.12):(low*1.8+Math.sin(t*650+Math.sin(t*14)*10)*.015*(1+Math.sin(t*3)));if(s.id==='cicada')v=Math.sin(t*(rich?6400:5600))*Math.pow(.5+.5*Math.sin(t*17),3)*(.5+.5*Math.sin(t*1.2))*(rich?.13:.07);if(s.id==='bird'){if(event<.0001&&Math.random()<(rich?.00003:.000015)){event=1;freq=1800+Math.random()*1600}phase+=2*Math.PI*(freq+500*Math.sin(t*24))/rate;v=Math.sin(phase)*event*.19*(.5+.5*Math.sin(t*31));event*=.99985}if(s.id==='train')v=(brown*1.8+low*.3+Math.sin(t*95)*.025)*(.6+.4*Math.sin(t*.5))*(rich?1:.55);if(s.id==='book'){if(Math.random()<(rich?.000015:.000008))event=1;v=w*event*.55;event*=.9994}if(s.id==='keyboard'){if(Math.random()<(rich?.00009:.000065))event=1;v=(w*.4+Math.sin(t*2400)*.3)*event*(rich?.6:.2);event*=rich?.985:.97}const fade=Math.min(1,i/(rate*.03),(n-i)/(rate*.03));out[i]=v*fade}}return buf}
-function soundLevel(s){return s.volume/100*.7*(s.category==='synth'?.12:1)}
+function soundLevel(s){if(s.id==='noise_background')return s.volume/100;return s.volume/100*.7*(s.category==='synth'?.12:1)}
 function attach(ac,s,destination,buffer){
  const source=s.category==='synth'?synthesizer.createSource(ac,s):ac.createBufferSource(),gain=ac.createGain();
- if(s.category!=='synth'){source.buffer=buffer||recordingAudio.get(s)||makeBuffer(ac,s);source.loop=true;source.loopStart=0;source.loopEnd=source.buffer.duration}
+ if(s.category!=='synth'){source.buffer=buffer||s.buffer||recordingAudio.get(s)||makeBuffer(ac,s);source.loop=true;source.loopStart=0;source.loopEnd=source.buffer.duration}
  gain.gain.value=soundLevel(s);source.connect(gain).connect(destination);source.start();return{source,gain}
 }
 function stopNode(id){const n=nodes[id];if(!n)return;n.source.stop();n.source.disconnect();n.gain.disconnect();delete nodes[id]}
 function replaceNode(s){stopNode(s.id);nodes[s.id]={...attach(ctx,s,masterGain),variant:s.variant}}
 async function syncMixer(){
  const revision=++mixRevision;
- const selected=sounds.filter(s=>s.volume>0).map(s=>({...s}));
+ const selected=currentPlaybackSounds();
  for(const id of Object.keys(nodes)){const s=selected.find(s=>s.id===id);if(!s||nodes[id].variant!==s.variant)stopNode(id)}
  try{await recordingAudio.prepare(ctx,selected);if(!playing||revision!==mixRevision)return;
-  for(const entry of selected){const s=sounds.find(s=>s.id===entry.id);if(!nodes[s.id])replaceNode(s);else nodes[s.id].gain.gain.setTargetAtTime(soundLevel(s),ctx.currentTime,.1)}
+  for(const entry of selected){const s=entry;if(!nodes[s.id])replaceNode(s);else nodes[s.id].gain.gain.setTargetAtTime(soundLevel(s),ctx.currentTime,.1)}
  }catch(e){if(playing&&revision===mixRevision){pause();toast(e.message||'音频加载失败，请重试')}}
 }
 async function togglePlay(){
  if(playing||loadingPlay){pause();return}
- if(!sounds.some(s=>s.volume)){toast('先选择一种声音吧');return}
+ if(workflowBusy){toast('正在合成噪音背景，请稍候');return}if(!currentPlaybackSounds().length){toast('先选择一种声音吧');return}
  const request=++playRequest;loadingPlay=true;updateMobilePlayer();$('#play').innerHTML='◌ <span>正在加载声音 · 点击取消</span>';$('#play').setAttribute('aria-busy','true');
  try{
   ctx??=new(window.AudioContext||window.webkitAudioContext)();await ctx.resume();
   // Load only selected recordings. If the mix changes during loading, prepare the latest mix.
   while(request===playRequest){
-   const selected=sounds.filter(s=>s.volume>0).map(s=>({...s}));
+   const selected=currentPlaybackSounds();
    const signature=JSON.stringify(selected.map(s=>[s.id,s.variant]));
    await recordingAudio.prepare(ctx,selected,(done,total)=>{if(request===playRequest&&total){$('#play').innerHTML='◌ <span>正在加载 '+done+'/'+total+' · 点击取消</span>';$('#mobilePlay').textContent=done+'/'+total+' 取消'}});
-   if(signature===JSON.stringify(sounds.filter(s=>s.volume>0).map(s=>[s.id,s.variant])))break;
+   if(signature===JSON.stringify(currentPlaybackSounds().map(s=>[s.id,s.variant])))break;
   }
   if(request!==playRequest)return;
-  if(!sounds.some(s=>s.volume)){pause();return}
+  if(!currentPlaybackSounds().length){pause();return}
   if(!masterGain){masterGain=ctx.createGain();masterGain.connect(ctx.destination)}
-  masterGain.gain.value=+$('#master').value/100;for(const s of sounds.filter(s=>s.volume>0))replaceNode(s);
+  masterGain.gain.value=+$('#master').value/100;for(const s of currentPlaybackSounds())replaceNode(s);
   playing=true;updateMobilePlayer();activity.start(mixSnapshot());startTime=Date.now()-elapsed*1000;
   if(+$('#timer').value)timerEnd=Date.now()+(+$('#timer').value)*60000;
   document.body.classList.add('playing');$('#play').innerHTML='Ⅱ <span>暂停聆听</span>';
  }catch(e){if(request===playRequest){pause();toast(e.message||'声音暂时无法播放，请重试')}}
  finally{if(request===playRequest){loadingPlay=false;updateMobilePlayer();$('#play').setAttribute('aria-busy','false')}}
 }function pause(){++mixRevision;++playRequest;loadingPlay=false;$('#play').setAttribute('aria-busy','false');activity.stop();for(const n of Object.values(nodes)){n.source.stop();n.source.disconnect();n.gain.disconnect()}nodes={};playing=false;updateMobilePlayer();document.body.classList.remove('playing');$('#play').innerHTML='▶ <span>聆听我的声音</span>';timerEnd=0}$('#play').onclick=togglePlay;$('#master').oninput=e=>{const v=+e.target.value;if(historyReady)activity.schedule(mixSnapshot());$('#masterValue').textContent=v+'%';e.target.style.setProperty('--value',v+'%');if(masterGain)masterGain.gain.setTargetAtTime(v/100,ctx.currentTime,.1)};$('#master').style.setProperty('--value','65%');$('#timer').onchange=()=>{timerEnd=playing&&+$('#timer').value?Date.now()+(+$('#timer').value)*60000:0;if(timerEnd)toast($('#timer').value+' 分钟后停止播放')};setInterval(()=>{if(!playing)return;activity.tick();elapsed=Math.floor((Date.now()-startTime)/1000);$('#elapsed').textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');if(timerEnd&&Date.now()>=timerEnd){pause();toast('定时结束，愿你拥有一段好时光')}},1000);
-$('#reset').onclick=()=>{sounds.forEach(s=>{s.volume=0;s.variant=0});mixName='我的宁静时刻';elapsed=0;$('#elapsed').textContent='00:00';if(playing||loadingPlay)pause();renderCards();updateMix();toast('已清空调配')};
-function showPage(page){$('#studio').hidden=page!=='studio';$('#home').hidden=page!=='home';document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='home'){activity.flush();renderSaved();renderActivity()}window.scrollTo({top:0,behavior:'smooth'})}document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));$('#save').onclick=()=>{if(!sounds.some(s=>s.volume)){toast('先调配一组喜欢的声音吧');return}$('#presetName').value=mixName==='我的宁静时刻'?'':mixName;$('#saveDialog').showModal();$('#presetName').focus()};$('#cancelSave').onclick=()=>$('#saveDialog').close();$('#saveForm').onsubmit=e=>{e.preventDefault();const name=$('#presetName').value.trim();if(!name)return;const item={id:Date.now().toString(),name,master:+$('#master').value,sounds:sounds.map(s=>({id:s.id,volume:s.volume,variant:s.variant})),date:new Date().toLocaleDateString('zh-CN')};try{const next=[item,...saved];localStorage.setItem('soundloom-presets',JSON.stringify(next));saved=next;mixName=name;activity.schedule(mixSnapshot());$('#saveDialog').close();updateMix();toast('已保存到「我的声屿」')}catch{toast('保存失败，浏览器存储空间可能已满')}};
-function renderSaved(){const root=$('#savedGrid');root.innerHTML='';if(!saved.length){root.innerHTML='<div class="empty"><strong>这里，等着你的第一片声屿。</strong><p>将喜欢的声音调在一起，保存属于自己的片刻。<br>每一种心情，都值得拥有一个声音。</p><button class="save-button" id="emptyCreate">开始调配 ↗</button></div>';$('#emptyCreate').onclick=()=>showPage('studio');return}saved.forEach(p=>{const card=document.createElement('article');card.className='saved-card';const label=document.createElement('p');label.className='eyebrow';label.textContent='MY LITTLE ISLAND · '+p.date;const title=document.createElement('h2');title.textContent=p.name;const desc=document.createElement('p');desc.textContent=p.sounds.filter(x=>x.volume).map(x=>{const s=sounds.find(s=>s.id===x.id);return s?s.variants[x.variant]+' '+x.volume+'%':''}).join(' · ');const actions=document.createElement('div');actions.className='actions';const load=document.createElement('button');load.className='save-button';load.textContent='载入并聆听 ↗';load.onclick=()=>{loadMix(p);showPage('studio');if(!playing)togglePlay()};const del=document.createElement('button');del.className='text-button';del.textContent='删除';del.onclick=()=>{try{const next=saved.filter(x=>x.id!==p.id);localStorage.setItem('soundloom-presets',JSON.stringify(next));saved=next;renderSaved();updateMix();toast('已删除此偏好')}catch{toast('删除失败，请重试')}};actions.append(load,del);card.append(label,title,desc,actions);root.append(card)})}function loadMix(p){sounds.forEach(s=>{const v=p.sounds.find(x=>x.id===s.id);s.volume=v?.volume||0;s.variant=v?.variant||0;});mixName=p.name;$('#master').value=p.master??65;$('#master').dispatchEvent(new Event('input'));renderCards();updateMix()}
-const presets={focus:{name:'林间专注',sounds:[{id:'wind',volume:35,variant:0},{id:'bird',volume:25,variant:0},{id:'water',volume:30,variant:0},{id:'frog',volume:20,variant:0}]},sleep:{name:'雨夜好眠',sounds:[{id:'rain',volume:60,variant:0},{id:'wind',volume:20,variant:0}]},read:{name:'周末书房',sounds:[{id:'book',volume:45,variant:1},{id:'rain',volume:30,variant:0}]}};document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{loadMix(presets[b.dataset.preset]);toast('已载入「'+mixName+'」');$('#mixTitle').scrollIntoView({behavior:'smooth',block:'center'})});
-$('#export').onclick=async()=>{const active=sounds.filter(s=>s.volume).map(s=>({...s}));if(!active.length){toast('请先添加声音再导出');return}const b=$('#export');b.disabled=true;b.textContent='正在合成音频…';try{const ac=new OfflineAudioContext(2,22050*30,22050),g=ac.createGain();g.gain.value=+$('#master').value/100;g.connect(ac.destination);await recordingAudio.prepare(ac,active);active.forEach(s=>attach(ac,s,g));const audio=await ac.startRendering(),n=audio.length,buffer=new ArrayBuffer(44+n*4),v=new DataView(buffer);function str(offset,s){for(let i=0;i<s.length;i++)v.setUint8(offset+i,s.charCodeAt(i))}str(0,'RIFF');v.setUint32(4,36+n*4,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,2,true);v.setUint32(24,22050,true);v.setUint32(28,88200,true);v.setUint16(32,4,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,n*4,true);const channels=[audio.getChannelData(0),audio.getChannelData(1)];for(let i=0;i<n;i++)for(let c=0;c<2;c++){const fade=Math.min(1,i/11025,(n-i)/22050);const sample=Math.max(-1,Math.min(1,channels[c][i]*fade));v.setInt16(44+(i*2+c)*2,sample*32767,true)}const url=URL.createObjectURL(new Blob([buffer],{type:'audio/wav'})),a=document.createElement('a');a.href=url;a.download=mixName+'.wav';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('混合音频已生成，正在下载')}catch(e){toast(e.message||'导出失败，请使用支持 Web Audio 的浏览器重试')}finally{b.disabled=false;b.innerHTML='↓ 导出混合音频 <small>30 秒 · WAV</small>'}};renderCards();updateMix();historyReady=true;
+$('#reset').onclick=()=>{sounds.forEach(s=>{s.volume=0;s.variant=0});mixName=stage==='noise'?'我的噪音调配':'我的遮蔽声景';elapsed=0;$('#elapsed').textContent='00:00';if(playing||loadingPlay)pause();renderCards();updateMix();toast('已清空调配')};
+function showPage(page){if(page==='home'&&stage==='noise'){toast('请先完成噪音调配，再查看个人声屿');return}$('#studio').hidden=page!=='studio';$('#home').hidden=page!=='home';document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='home'){activity.flush();renderSaved();renderActivity()}window.scrollTo({top:0,behavior:'smooth'})}document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));$('#save').onclick=()=>{if(stage!=='mask'){toast('请先完成噪音调配');return}if(!currentPlaybackSounds().length){toast('先调配一组喜欢的声音吧');return}$('#presetName').value=mixName==='我的宁静时刻'?'':mixName;$('#saveDialog').showModal();$('#presetName').focus()};$('#cancelSave').onclick=()=>$('#saveDialog').close();$('#saveForm').onsubmit=e=>{e.preventDefault();const name=$('#presetName').value.trim();if(!name)return;const item={...mixSnapshot(),id:Date.now().toString(),name,date:new Date().toLocaleDateString('zh-CN')};try{const next=[item,...saved];localStorage.setItem('soundloom-presets',JSON.stringify(next));saved=next;mixName=name;activity.schedule(mixSnapshot());$('#saveDialog').close();updateMix();toast('已保存到「我的声屿」')}catch{toast('保存失败，浏览器存储空间可能已满')}};
+function renderSaved(){const root=$('#savedGrid');root.innerHTML='';if(!saved.length){root.innerHTML='<div class="empty"><strong>这里，等着你的第一片声屿。</strong><p>将喜欢的声音调在一起，保存属于自己的片刻。<br>每一种心情，都值得拥有一个声音。</p><button class="save-button" id="emptyCreate">开始调配 ↗</button></div>';$('#emptyCreate').onclick=()=>showPage('studio');return}saved.forEach(p=>{const card=document.createElement('article');card.className='saved-card';const label=document.createElement('p');label.className='eyebrow';label.textContent='MY LITTLE ISLAND · '+p.date;const title=document.createElement('h2');title.textContent=p.name;const desc=document.createElement('p');desc.textContent=p.sounds.filter(x=>x.volume).map(x=>{const s=sounds.find(s=>s.id===x.id);return s?s.variants[x.variant]+' '+x.volume+'%':''}).join(' · ')+(p.background?' · 噪音背景 '+p.background.volume+'%':'');const actions=document.createElement('div');actions.className='actions';const load=document.createElement('button');load.className='save-button';load.textContent='载入并聆听 ↗';load.onclick=async()=>{if(await loadMix(p)){showPage('studio');if(!playing)togglePlay()}};const del=document.createElement('button');del.className='text-button';del.textContent='删除';del.onclick=()=>{try{const next=saved.filter(x=>x.id!==p.id);localStorage.setItem('soundloom-presets',JSON.stringify(next));saved=next;renderSaved();updateMix();toast('已删除此偏好')}catch{toast('删除失败，请重试')}};actions.append(load,del);card.append(label,title,desc,actions);root.append(card)})}async function loadMix(p){
+ if(workflowBusy)return false;
+ if(!p||typeof p.name!=='string'||!Array.isArray(p.sounds)){toast('这组调配记录无法载入');return false}
+ if(stage!=='mask'){toast('请先完成第一步噪音调配');return false}
+ if(p.phase==='noise'){toast('第一步噪音请通过「重新调配噪音」修改');return false}
+ if(p.background){
+  const parts=validateNoiseParts(p.background.parts);if(!parts){toast('这组噪音背景记录无法载入');return false}
+  pause();workflowBusy=true;renderWorkflow();
+  try{const buffer=await buildNoiseBuffer(parts);noiseParts=parts;noiseBuffer=buffer;noiseVolume=Math.max(0,Math.min(100,Number(p.background.volume)||0))}
+  catch(e){toast(e.message||'噪音背景载入失败');return false}
+  finally{workflowBusy=false;renderWorkflow()}
+ }
+ applySoundSettings(p.sounds);mixName=p.name;$('#master').value=p.master??65;$('#master').dispatchEvent(new Event('input'));renderCards();updateMix();return true;
+}
+const presets={focus:{name:'林间专注',sounds:[{id:'wind',volume:35,variant:0},{id:'bird',volume:25,variant:0},{id:'water',volume:30,variant:0},{id:'frog',volume:20,variant:0}]},sleep:{name:'雨夜好眠',sounds:[{id:'rain',volume:60,variant:0},{id:'wind',volume:20,variant:0}]},read:{name:'周末书房',sounds:[{id:'book',volume:45,variant:1},{id:'rain',volume:30,variant:0}]}};document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=async()=>{if(!await loadMix(presets[b.dataset.preset]))return;toast('已载入「'+mixName+'」');$('#mixTitle').scrollIntoView({behavior:'smooth',block:'center'})});
+$('#export').onclick=async()=>{const active=currentPlaybackSounds();if(!active.length){toast('请先添加声音再导出');return}const b=$('#export');b.disabled=true;b.textContent='正在合成音频…';try{const ac=new OfflineAudioContext(2,22050*30,22050),g=ac.createGain();g.gain.value=+$('#master').value/100;g.connect(ac.destination);await recordingAudio.prepare(ac,active);active.forEach(s=>attach(ac,s,g));const audio=await ac.startRendering(),n=audio.length,buffer=new ArrayBuffer(44+n*4),v=new DataView(buffer);function str(offset,s){for(let i=0;i<s.length;i++)v.setUint8(offset+i,s.charCodeAt(i))}str(0,'RIFF');v.setUint32(4,36+n*4,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,2,true);v.setUint32(24,22050,true);v.setUint32(28,88200,true);v.setUint16(32,4,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,n*4,true);const channels=[audio.getChannelData(0),audio.getChannelData(1)];for(let i=0;i<n;i++)for(let c=0;c<2;c++){const fade=Math.min(1,i/11025,(n-i)/22050);const sample=Math.max(-1,Math.min(1,channels[c][i]*fade));v.setInt16(44+(i*2+c)*2,sample*32767,true)}const url=URL.createObjectURL(new Blob([buffer],{type:'audio/wav'})),a=document.createElement('a');a.href=url;a.download=mixName+'.wav';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('混合音频已生成，正在下载')}catch(e){toast(e.message||'导出失败，请使用支持 Web Audio 的浏览器重试')}finally{b.disabled=false;b.innerHTML='↓ 导出混合音频 <small>30 秒 · WAV</small>'}};renderCards();updateMix();historyReady=true;
 
 // Voice subcategory navigation.
 document.querySelectorAll('[data-voice]').forEach(b=>b.onclick=()=>{voiceFilter=b.dataset.voice;visibleLimit=12;document.querySelectorAll('[data-voice]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',x===b)});renderCards()});
@@ -79,7 +94,7 @@ function renderActivityStats(data){const seconds=Math.floor(data.listenMs/1000);
 }
 function renderActivity(){const data=activity.read();renderActivityStats(data);
  const root=$('#historyGrid');root.replaceChildren();if(!data.history.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='还没有调配记录。调整声音或音量后，这里会自动留下足迹。';root.append(empty);return}
- for(const item of data.history){const card=document.createElement('article');card.className='history-card';const content=document.createElement('div');const time=document.createElement('p');time.className='eyebrow';time.textContent=new Date(item.at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const title=document.createElement('h3');title.textContent=item.name;const desc=document.createElement('p');desc.textContent=item.sounds.filter(x=>x.volume).map(x=>{const s=sounds.find(s=>s.id===x.id);return s?s.variants[x.variant]+' '+x.volume+'%':''}).filter(Boolean).join(' · ')+' · 总音量 '+item.master+'%';content.append(time,title,desc);const load=document.createElement('button');load.className='save-button';load.textContent='载入调配 ↗';load.onclick=()=>{loadMix(item);showPage('studio');toast('已载入这次调配，可继续调整或保存为偏好')};card.append(content,load);root.append(card)}
+ for(const item of data.history){const card=document.createElement('article');card.className='history-card';const content=document.createElement('div');const time=document.createElement('p');time.className='eyebrow';time.textContent=new Date(item.at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});const title=document.createElement('h3');title.textContent=item.name;const desc=document.createElement('p');desc.textContent=item.sounds.filter(x=>x.volume).map(x=>{const s=sounds.find(s=>s.id===x.id);return s?s.variants[x.variant]+' '+x.volume+'%':''}).filter(Boolean).join(' · ')+(item.background?' · 噪音背景 '+item.background.volume+'%':'')+' · 总音量 '+item.master+'%';content.append(time,title,desc);const load=document.createElement('button');load.className='save-button';load.textContent='载入调配 ↗';load.onclick=async()=>{if(await loadMix(item)){showPage('studio');toast('已载入这次遮蔽调配')}};card.append(content,load);root.append(card)}
 }
 $('#clearActivity').onclick=()=>{if(!window.confirm('清空当前浏览器的调配记录与使用统计？已保存的偏好会保留。'))return;activity.clear();renderActivity();toast('已清空调配记录与统计')};
 activity.onChange=()=>{if(!$('#home').hidden)renderActivity()};
@@ -96,14 +111,74 @@ $('#openSelected').onclick=()=>{
 
 function updateMobilePlayer(){
  $('#mobileMixTitle').textContent=mixName;
- $('#mobileMixCount').textContent='已选 '+sounds.filter(s=>s.volume>0).length+' 种声音';
+ $('#mobileMixCount').textContent=stage==='noise'?'第 1 步 · 噪音 '+sounds.filter(s=>s.volume>0).length+' 种':'第 2 步 · 背景＋遮蔽 '+sounds.filter(s=>s.volume>0).length+' 种';
  const button=$('#mobilePlay');button.textContent=loadingPlay?'取消加载':playing?'Ⅱ 暂停':'▶ 试听';
  button.setAttribute('aria-label',loadingPlay?'取消声音加载':playing?'暂停声音':'播放声音');
  button.setAttribute('aria-pressed',playing);button.setAttribute('aria-busy',loadingPlay);
 }
 $('#mobilePlay').onclick=()=>togglePlay();
 $('#mobileSelected').onclick=()=>{showPage('studio');$('#openSelected').onclick()};
-$('#mobileMixer').onclick=()=>{showPage('studio');$('#mixTitle').scrollIntoView({behavior:'smooth',block:'start'})};
+$('#mobileMixer').onclick=()=>{if(stage==='noise'){confirmNoise();return}showPage('studio');$('#mixTitle').scrollIntoView({behavior:'smooth',block:'start'})};
 updateMobilePlayer();
 
 $('#loadMoreSounds').onclick=()=>{visibleLimit+=12;renderCards()};
+
+function currentPlaybackSounds(){
+ const selected=sounds.filter(s=>s.volume>0&&(stage==='mask'||['life','synth'].includes(s.category))).map(s=>({...s}));
+ if(stage==='mask'&&noiseBuffer&&noiseVolume>0)selected.unshift({id:'noise_background',name:'我的噪音背景',category:'background',volume:noiseVolume,variant:0,buffer:noiseBuffer});
+ return selected;
+}
+function applySoundSettings(parts){sounds.forEach(s=>{const p=(parts||[]).find(p=>p.id===s.id);s.volume=p?Math.max(0,Math.min(100,Number(p.volume)||0)):0;s.variant=p&&Number.isInteger(p.variant)&&s.variants[p.variant]?p.variant:0})}
+function validateNoiseParts(parts){
+ if(!Array.isArray(parts)||!parts.length||parts.length>100)return null;
+ const result=[];
+ for(const p of parts){const s=sounds.find(s=>s.id===p.id);if(!s||!['life','synth'].includes(s.category)||!Number.isFinite(p.volume)||p.volume<=0||p.volume>100||!Number.isInteger(p.variant)||!s.variants[p.variant]||result.some(x=>x.id===p.id))return null;result.push({id:p.id,volume:p.volume,variant:p.variant})}
+ return result;
+}
+async function buildNoiseBuffer(parts){
+ const selected=parts.map(p=>({...sounds.find(s=>s.id===p.id),...p}));
+ const ac=new OfflineAudioContext(2,22050*20,22050),bus=ac.createGain();bus.gain.value=1;bus.connect(ac.destination);
+ await recordingAudio.prepare(ac,selected);selected.forEach(s=>attach(ac,s,bus));
+ const rendered=await ac.startRendering(),overlap=Math.round(rendered.sampleRate*.5),length=rendered.length-overlap;
+ const result=ac.createBuffer(2,length,rendered.sampleRate);
+ for(let c=0;c<2;c++){const src=rendered.getChannelData(c),out=result.getChannelData(c);out.set(src.subarray(overlap,rendered.length-overlap));for(let i=0;i<overlap;i++){const t=i/(overlap-1)*Math.PI/2;out[length-overlap+i]=src[rendered.length-overlap+i]*Math.cos(t)+src[i]*Math.sin(t)}}
+ return result;
+}
+function renderWorkflow(){
+ const first=stage==='noise',active=sounds.filter(s=>s.volume>0&&['life','synth'].includes(s.category));
+ $('#workflowStepOne').classList.toggle('active',first);$('#workflowStepTwo').classList.toggle('active',!first);
+ $('#workflowTitle').textContent=first?'第一步：调配你感受到的噪音':'第二步：寻找舒服的遮蔽声音';
+ $('#workflowDescription').textContent=first?'仅从生活回响与合成器中选择声音，调成你认为的噪音。完成后确认，才能进入下一步。':'你的噪音已合成为独立背景。尝试叠加自然、音乐等声音，寻找适合自己的遮蔽组合。';
+ $('#confirmNoise').hidden=!first;$('#confirmNoise').disabled=workflowBusy||!active.length;$('#confirmNoise').textContent=workflowBusy?'正在合成噪音背景…':'确认噪音，进入遮蔽调配 →';
+ $('#noiseBackground').hidden=first;$('#inspirationPresets').hidden=first;$('#save').hidden=first;$('#export').hidden=first;
+ $('#selectedBannerTitleText').textContent=first?'已选噪音素材':'已选遮蔽声音';
+ $('#mobileMixer').textContent=first?'下一步':'调配';$('#mobileMixer').disabled=workflowBusy||(first&&!active.length);$('#mobileMixer').setAttribute('aria-label',first?'确认噪音并进入下一步':'打开声音调配与导出');
+ document.querySelectorAll('[data-filter]').forEach(b=>b.hidden=first&&!['all','selected','life','synth'].includes(b.dataset.filter));
+ document.querySelectorAll('[data-page="home"]').forEach(b=>{b.disabled=first;b.setAttribute('aria-disabled',first)});
+ $('#noiseVolumeValue').textContent=noiseVolume+'%';$('#noiseVolume').value=noiseVolume;$('#noiseVolume').style.setProperty('--value',noiseVolume+'%');
+ $('#soundLibrary').inert=workflowBusy;$('#editNoise').disabled=workflowBusy;$('#workflowPanel').setAttribute('aria-busy',workflowBusy);
+}
+async function confirmNoise(){
+ if(stage!=='noise'||workflowBusy)return;
+ const parts=validateNoiseParts(sounds.filter(s=>s.volume>0).map(s=>({id:s.id,volume:s.volume,variant:s.variant})));
+ if(!parts){toast('请先选择至少一种噪音，并将音量调到零以上');return}
+ pause();const request=++noiseBuildRequest;workflowBusy=true;renderWorkflow();
+ try{
+  const buffer=await buildNoiseBuffer(parts);if(request!==noiseBuildRequest)return;
+  noiseParts=parts;noiseBuffer=buffer;noiseVolume=100;stage='mask';
+  applySoundSettings(maskDraft?.sounds||[]);mixName=maskDraft?.name||'我的遮蔽声景';maskDraft=null;filter='all';searchTerm='';visibleLimit=12;$('#soundSearch').value='';
+  document.querySelectorAll('[data-filter]').forEach(b=>{b.classList.toggle('selected',b.dataset.filter==='all');b.setAttribute('aria-pressed',b.dataset.filter==='all')});
+  $('#workflowSubtitle').textContent='先听见你的噪音，再慢慢找到适合自己的声音。';
+  toast('噪音已合成。现在可以添加遮蔽声音，背景只能整体调音量。');
+ }catch(e){toast(e.message||'合成失败，请重试')}
+ finally{workflowBusy=false;renderCards();updateMix()}
+ $('#noiseBackground').scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('#confirmNoise').onclick=confirmNoise;
+$('#noiseVolume').oninput=e=>{noiseVolume=Math.max(0,Math.min(100,+e.target.value));renderWorkflow();updateMix()};
+$('#editNoise').onclick=()=>{
+ if(workflowBusy)return;maskDraft=mixSnapshot();pause();stage='noise';applySoundSettings(noiseParts);noiseBuffer=null;noiseParts=[];filter='all';searchTerm='';$('#soundSearch').value='';mixName='我的噪音调配';
+ document.querySelectorAll('[data-filter]').forEach(b=>{b.classList.toggle('selected',b.dataset.filter==='all');b.setAttribute('aria-pressed',b.dataset.filter==='all')});
+ renderCards();updateMix();$('#workflowPanel').scrollIntoView({behavior:'smooth',block:'start'});
+};
+renderWorkflow();renderCards();updateMix();
