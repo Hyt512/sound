@@ -1,0 +1,92 @@
+[
+  {
+    "id": "music_piano_sonata10",
+    "name": "c大调第十钢琴奏鸣曲",
+    "en": "Piano",
+    "desc": "钢琴演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "piano",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-piano-sonata10-loop.wav",
+    "sourceFile": "钢琴《c大调第十钢琴奏鸣曲》.mp4",
+    "sourceSeconds": 26.112,
+    "loopSeconds": 25.112
+  },
+  {
+    "id": "music_piano_k545",
+    "name": "莫扎特k545",
+    "en": "Piano",
+    "desc": "钢琴演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "piano",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-piano-k545-loop.wav",
+    "sourceFile": "钢琴《莫扎特k545》.mp4",
+    "sourceSeconds": 20.8,
+    "loopSeconds": 19.8
+  },
+  {
+    "id": "music_piano_nocturne",
+    "name": "降E大调夜曲 Op.9 No.2",
+    "en": "Piano",
+    "desc": "钢琴演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "piano",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-piano-nocturne-loop.wav",
+    "sourceFile": "钢琴《降E大调夜曲 Op.9 No.2》.mp4",
+    "sourceSeconds": 26.261,
+    "loopSeconds": 25.261
+  },
+  {
+    "id": "music_piano_k330",
+    "name": "莫扎特奏鸣曲k330第一乐章",
+    "en": "Piano",
+    "desc": "钢琴演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "piano",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-piano-k330-loop.wav",
+    "sourceFile": "钢琴《莫扎特奏鸣曲k330第一乐章》.mp4",
+    "sourceSeconds": 28.907,
+    "loopSeconds": 27.907
+  },
+  {
+    "id": "music_piano_moonlight",
+    "name": "月光",
+    "en": "Piano",
+    "desc": "钢琴演奏 · 原声循环",
+    "category": "music",
+    "subcategory": "piano",
+    "variants": [
+      "原声演奏"
+    ],
+    "volume": 0,
+    "variant": 0,
+    "lastVolume": 30,
+    "url": "assets/audio/music-piano-moonlight-loop.wav",
+    "sourceFile": "钢琴曲《月光》.mp4",
+    "sourceSeconds": 30.165,
+    "loopSeconds": 29.165
+  }
+]

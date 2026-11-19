@@ -2,6 +2,11 @@
 // Each WAV contains a 1-second equal-power tail/head crossfade.
 const recordingAudio = (() => {
   const assets = {
+    'music_piano_sonata10:0': { name: "c大调第十钢琴奏鸣曲", url: 'assets/audio/music-piano-sonata10-loop.wav' },
+    'music_piano_k545:0': { name: "莫扎特k545", url: 'assets/audio/music-piano-k545-loop.wav' },
+    'music_piano_nocturne:0': { name: "降E大调夜曲 Op.9 No.2", url: 'assets/audio/music-piano-nocturne-loop.wav' },
+    'music_piano_k330:0': { name: "莫扎特奏鸣曲k330第一乐章", url: 'assets/audio/music-piano-k330-loop.wav' },
+    'music_piano_moonlight:0': { name: "月光", url: 'assets/audio/music-piano-moonlight-loop.wav' },
     'music_flow:0': { name: '流水清音', url: 'assets/audio/music-flow-loop.wav' },
     'music_underwater:0': { name: '水底微光', url: 'assets/audio/music-underwater-loop.wav' },
     'music_guqin:0': { name: '古琴幽韵', url: 'assets/audio/music-guqin-loop.wav' },
