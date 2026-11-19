@@ -149,7 +149,7 @@ function renderWorkflow(){
  $('#workflowStepOne').classList.toggle('active',first);$('#workflowStepTwo').classList.toggle('active',!first);
  $('#workflowTitle').textContent=first?'第一步：调配你感受到的噪音':'第二步：寻找舒服的遮蔽声音';
  $('#workflowDescription').textContent=first?'仅从生活回响与合成器中选择声音，调成你认为的噪音。完成后确认，才能进入下一步。':'你的噪音已合成为独立背景。尝试叠加自然、音乐等声音，寻找适合自己的遮蔽组合。';
- $('#confirmNoise').hidden=!first;$('#confirmNoise').disabled=workflowBusy||!active.length;$('#confirmNoise').textContent=workflowBusy?'正在合成噪音背景…':'确认噪音，进入遮蔽调配 →';
+ $('#confirmNoiseActions').hidden=!first;$('#confirmNoise').hidden=!first;$('#confirmNoise').disabled=workflowBusy||!active.length;$('#confirmNoise').textContent=workflowBusy?'正在合成噪音背景…':'确认噪音，进入遮蔽调配 →';
  $('#noiseBackground').hidden=first;$('#inspirationPresets').hidden=first;$('#save').hidden=first;$('#export').hidden=first;
  $('#selectedBannerTitleText').textContent=first?'已选噪音素材':'已选遮蔽声音';
  $('#mobileMixer').textContent=first?'下一步':'调配';$('#mobileMixer').disabled=workflowBusy||(first&&!active.length);$('#mobileMixer').setAttribute('aria-label',first?'确认噪音并进入下一步':'打开声音调配与导出');
