@@ -155,9 +155,10 @@ async function buildNoiseBuffer(parts){
 }
 function renderWorkflow(){
  const first=stage==='noise',active=sounds.filter(s=>s.volume>0&&['life','synth'].includes(s.category));
+ $('#lifeFilterLabel').textContent=first?'可能的噪音':'生活回响';$('#synthFilterLabel').textContent=first?'可能的耳鸣声':'合成器';
  $('#workflowStepOne').classList.toggle('active',first);$('#workflowStepTwo').classList.toggle('active',!first);$('#workflowStepOne').setAttribute('aria-current',first?'step':'false');$('#workflowStepTwo').setAttribute('aria-current',first?'false':'step');$('#workflowProgressFill').style.width=first?'50%':'100%';$('#workflowProgress').setAttribute('aria-valuenow',first?'1':'2');$('#workflowProgress').setAttribute('aria-valuetext',first?'Step 1 做耳鸣声':'Step 2 做声音组合');
  $('#workflowTitle').textContent=first?'Step 1：做耳鸣声':'Step 2：做声音组合';
- $('#workflowDescription').textContent=first?'从生活回响与合成器调配你感受到的耳鸣／噪音，试听确认后进入下一步。':'耳鸣／噪音已合为背景。叠加最多 10 种声音调配组合，背景不计入数量。';
+ $('#workflowDescription').textContent=first?'从「可能的噪音」与「可能的耳鸣声」中调配你感受到的声音，试听确认后进入下一步。':'耳鸣／噪音已合为背景。叠加最多 10 种声音调配组合，背景不计入数量。';
  $('#confirmNoiseActions').hidden=!first;$('#confirmNoise').hidden=!first;$('#confirmNoise').disabled=workflowBusy||!active.length;$('#confirmNoise').textContent=workflowBusy?'正在合成噪音背景…':'确认噪音，进入遮蔽调配 →';
  $('#noiseBackground').hidden=first;$('#inspirationPresets').hidden=first;$('#save').hidden=first;$('#export').hidden=first;
  $('#selectionLimitHint').hidden=first;$('#selectionLimitHint').textContent='已选 '+sounds.filter(s=>s.volume>0).length+' / 10 种组合声音 · 不含耳鸣／噪音背景';
